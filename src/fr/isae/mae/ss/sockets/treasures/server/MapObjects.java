@@ -4,7 +4,7 @@ package fr.isae.mae.ss.sockets.treasures.server;
 public enum MapObjects {
     /** unknown */
     UNKNOWN("?"),
-    /** spawn */
+    /** spawn (for map files) */
     SPAWNPOINT("S"),
     /** a wall */
     WALL("#"),

@@ -1,5 +1,7 @@
 package fr.isae.mae.ss.sockets.treasures.server;
 
+import fr.isae.mae.ss.sockets.treasures.server.PlayerAction.PlayerParsedAction;
+
 /** Class representing coordinates (point or vector) */
 public class Coordinates {
     /*
@@ -48,44 +50,37 @@ public class Coordinates {
     }
 
     /** create coordinates to the given direction */
-    public Coordinates toDir(String... direction) {
+    public Coordinates toDir(PlayerParsedAction parsed) {
         int nx = x;
         int ny = y;
-        char dir = ' ';
-        try {
-            dir = direction[0].toUpperCase().charAt(0);
-        } catch (IndexOutOfBoundsException e) {
-            // empty string probably
-        }
-        switch (dir) {
-        case 'U':
+        //switch on type
+        switch (parsed.type) {
+        case UP:
             ny--;
             break;
-        case 'D':
+        case DOWN:
             ny++;
             break;
-        case 'L':
+        case LEFT:
             nx--;
             break;
-        case 'R':
+        case RIGHT:
             nx++;
             break;
-        case 'T': // TRIGO will run also teleport... but with no coordinates.
-                  // Pfiou.
-            if (direction.length >= 3) {
-                try {
-                    nx = Integer.parseInt(direction[1]);
-                    ny = Integer.parseInt(direction[2]);
-                } catch (NumberFormatException e) {
-                    // do nothing
-                    nx = x;
-                    ny = y;
-                }
+        case TELEPORT:
+            try {
+                nx = Integer.parseInt(parsed.arguments.get(0));
+                ny = Integer.parseInt(parsed.arguments.get(1));
+            } catch (NumberFormatException e) {
+                // do nothing
+                nx = x;
+                ny = y;
             }
             break;
         default:
             break;
         }
+        // return new coordinates
         return new Coordinates(nx, ny);
     }
 

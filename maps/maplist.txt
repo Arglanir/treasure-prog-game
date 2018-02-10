@@ -1,0 +1,3 @@
+# this folder contains the available maps
+# the list may be repeated here
+# The file format name must be <minimumGain>-<maximumGain>-<minimumPlayers>-<maximumPlayers>-...

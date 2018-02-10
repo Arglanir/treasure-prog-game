@@ -3,16 +3,21 @@
  */
 package fr.isae.mae.ss.sockets.treasures.server;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 
 /**
  * Represents a game map.
@@ -20,7 +25,17 @@ import java.util.function.BiFunction;
  * @author Cedric Mayer, 2018
  */
 public class GameMap implements Cloneable {
-
+	/** Game map options */
+	public static enum GameMapOptions {
+		/** Indicates if the treasure is shared with every one. If one treasure is found, the map is finished. */
+		SHARED(false);
+		/** default value */
+		Object defaut;
+		private GameMapOptions(Object def) {
+			defaut = def;
+		}
+	}
+	
     /** Maximum size of grid */
     public final static int MAXXY = 200;
 
@@ -29,8 +44,6 @@ public class GameMap implements Cloneable {
 
     /** Map of all created maps */
     public final static Map<Integer, GameMap> ALL_MAPS = new HashMap<>();
-
-    public final static String END_OF_MAP_TEMPLATE = "Found %s gold. %s treasures left.";
 
     /** The intensity function */
     final static BiFunction<Integer, Double, Double> INTENSITY_FUNCTION = (quantity, distance) -> quantity / distance;
@@ -53,30 +66,49 @@ public class GameMap implements Cloneable {
     final Set<Coordinates> walls = new HashSet<>();
 
     /** Set of spawnPoints */
-    final Set<Coordinates> spawnPoints = new HashSet<>();
+    final List<Coordinates> spawnPoints = new LinkedList<>();
 
-    /**
-     * Option of map: shared treasure. Every player share the same treasures.
-     * Finding one goes to next map.
-     */
-    final boolean optionSharedTreasure;
+    /** Options of the map */
+    final Map<GameMapOptions, Object> options = new EnumMap<>(GameMapOptions.class);
+    /** Options of the map */
+    final Map<PlayerAction.ActionType, Boolean> enabledActions = new EnumMap<>(PlayerAction.ActionType.class);
+    
+    GameController controller = new GameController();
 
     /** Constructor */
-    public GameMap(boolean optionSharedTreasure, int sizeX, int sizeY,
+    public GameMap(int sizeX, int sizeY,
             Collection<Coordinates> walls,
             Collection<Coordinates> spawn, Map<Coordinates, Integer> treasures) {
         super();
-        this.optionSharedTreasure = optionSharedTreasure;
         this.sizeX = sizeX;
         this.sizeY = sizeY;
         this.walls.addAll(walls);
         this.spawnPoints.addAll(spawn);
         this.treasures.putAll(treasures);
         ALL_MAPS.put(identifier, this);
+        // fill map of options
+        for (GameMapOptions option: GameMapOptions.values()) {
+        	options.put(option, option.defaut);
+        }
+        // fill map of enabledActions
+        for (PlayerAction.ActionType actionType: PlayerAction.ActionType.values()) {
+        	enabledActions.put(actionType, actionType.ordinal() < 4);
+        }
+        controller.map = this;
+    }
+    
+    /** Add a player to the game, at the first position, then rotate the positions */
+    public void addPlayer(String player) {
+    	if (!playersMap.containsKey(player)) {
+    		Coordinates coords = spawnPoints.get(0);
+    		spawnPoints.add(spawnPoints.remove(0));
+            playersMap.put(player, coords);
+    	}
     }
 
     /*
-     * [Shared|Compete] TreasureValue1 TreasureValue2...
+     * ActivatedOption...
+     * TreasureValue1 TreasureValue2...
      *  ....
      *  .#S.
      *  .S#. 
@@ -93,30 +125,31 @@ public class GameMap implements Cloneable {
         final Set<Coordinates> spawnPoints = new HashSet<>();
         final Map<Coordinates, Integer> treasures = new HashMap<>();
         // split into lines
-        String[] lines = map.split("\r?\n");
-        if (lines[lines.length - 1].length() == 0) {
+        List<String> lines = new ArrayList<>(Arrays.asList(map.split("\r?\n")));
+        String optionLine = lines.remove(0);
+        if (lines.get(lines.size()-1).length() == 0) {
             // remove last empty line
-            lines = Arrays.copyOf(lines, lines.length - 1);
+            lines.remove(lines.size()-1);
         }
-        // split first line
-        String[] firstLine = lines[0].split("\\s+");
-        boolean optionSharedTreasure = firstLine[0].toUpperCase().charAt(0) == 'S';
+        List<Integer> treasureLine = Arrays.stream(lines.remove(0).split("\\s+")).map(Integer::parseInt).collect(Collectors.toList());
+        
         // get size of map
-        int sizeY = lines.length - 1;
-        int sizeX = lines[lines.length - 1].length();
-        int nextTreasureValueIndex = 1;
-        int treasureValue = 100;
+        int sizeY = lines.size();
+        int sizeX = lines.stream().map(line -> line.length()).max(Integer::compare).get();
+        if (treasureLine.size() == 0) {
+        	treasureLine = Collections.singletonList(100);
+        }
         // read each cell of map
         for (int y = 0; y < sizeY; y++) {
             for (int x = 0; x < sizeX; x++) {
                 Coordinates c = new Coordinates(x, y);
                 try {
-                    switch (lines[y + 1].charAt(x)) {
+                    switch (lines.get(y).charAt(x)) {
                     case 'T':
-                        if (nextTreasureValueIndex < firstLine.length) {
-                            treasureValue = Integer.parseInt(firstLine[nextTreasureValueIndex]);
-                            nextTreasureValueIndex++;
-                        }
+                    	int treasureValue = treasureLine.get(0);
+                    	if (treasureLine.size() > 1) {
+                    		treasureLine.remove(0);
+                    	}
                         treasures.put(c, treasureValue);
                         break;
                     case '#':
@@ -135,9 +168,34 @@ public class GameMap implements Cloneable {
                 }
             }
         }
-        
-        return new GameMap(optionSharedTreasure, sizeX, sizeY, walls,
+        // create map
+        GameMap toreturn = new GameMap(sizeX, sizeY, walls,
                 spawnPoints, treasures);
+        // handle options
+        for (String option: optionLine.split("\\s+")) {
+        	if (option.length()==0) continue;
+        	// every action is authorized
+			if ("allActions".equals(option)) {
+				toreturn.enabledActions.forEach((action, enabled) -> toreturn.enabledActions.put(action, true));
+				continue;
+			}
+        	String[] optionValue = option.split("=");
+        	try { // try if it is a map option
+        		GameMapOptions realOption = GameMapOptions.valueOf(optionValue[0].toUpperCase());
+        		toreturn.options.put(realOption, optionValue.length == 1);
+        	} catch (IllegalArgumentException e) {
+        		// may be for an action
+				try {
+					PlayerAction.ActionType actionType = PlayerAction.ActionType.valueOf(optionValue[0].toUpperCase());
+					toreturn.enabledActions.put(actionType, true);
+				} catch (IllegalArgumentException e2) {
+					System.err.println("Unable to parse option "+option);
+				}
+				
+			}
+        	
+        }
+        return toreturn;
     }
 
     /**
@@ -185,90 +243,29 @@ public class GameMap implements Cloneable {
         return builder.toString();
     }
 
-    /** Return the default line */
-    public String getDefaultLine(String playerName) {
-        Coordinates player = playersMap.get(playerName);
-        String posline = player.x + " " + player.y + " " + charsAroundPos(player, 1) + " " + computeIntensity(player);
-        return posline;
-    }
-
-    /**
-     * A PlayerAction represents an action by a player, useful in order to redo
-     * a game.
-     */
-    public static class PlayerAction {
-        /** When the action has been created */
-        final Long when = System.currentTimeMillis();
-        /** name of player doing the action */
-        final String name;
-
-        /** The action sent */
-        final String action;
-
-        /** Constructor */
-        public PlayerAction(String name, String action) {
-            super();
-            this.name = name;
-            this.action = action;
-        }
-
-        /**
-         * Performs an action
-         * 
-         * @param map
-         *            The map to work on
-         * @param replay
-         *            Boolean indicating the replay (if <code>true</code>, no
-         *            player object is updated)
-         */
-        String perform(GameMap map, boolean replay) {
-            String toreturn = "";
-
-            if (map.treasures.size() == 0) {
-                // no more treasure, try another map please
-                return String.format(END_OF_MAP_TEMPLATE, 0, 0);
-            }
-
-            synchronized (map) {
-                Coordinates player = map.playersMap.get(name);
-                String[] actionLine = action.split("\\s+");
-                // maybe update position
-                Coordinates newCoordinates = player.toDir(actionLine);
-                if (map.areCoordinatesOk(newCoordinates)) {
-                    map.playersMap.put(name, newCoordinates);
-                    player = newCoordinates;
-                }
-                if (map.treasures.containsKey(player)) {
-                    // treasure found!
-                    int gain = map.treasures.get(player);
-                    if (!replay) {
-                        Player.ALL_PLAYERS.get(name).score.addAndGet(gain);
-                        map.treasures.remove(player);
-                    }
-                    toreturn = String.format(END_OF_MAP_TEMPLATE, gain,
-                            map.optionSharedTreasure ? 0 : map.treasures.size());
-                    if (map.optionSharedTreasure || map.treasures.size() == 0) {
-                        // end of map
-                        return toreturn;
-                    } else {
-                        toreturn += "\n";
-                    }
-                }
-                // perform other actions
-                // TODO
-                // toreturn
-                String posline = map.getDefaultLine(name);
-                toreturn += posline;
-            }
-            return toreturn;
-        }
+    /** Fills the given {@link ReturnedInfo} with the data present at given {@link Coordinates} */
+    public void fillDefaults(ReturnedInfo returned, Coordinates player) {
+    	returned.x = player.x;
+    	returned.y = player.y;
+    	returned.display = charsAroundPos(player, 1);
+    	returned.intensity = computeIntensity(player);
     }
 
     /** List that stores every action on the map, in order */
     final List<PlayerAction> actions = new LinkedList<>();
 
     @Override
-    public Object clone() throws CloneNotSupportedException {
-        return super.clone();
+    public GameMap clone() {
+    	// clone the map for a replay
+        try {
+        	GameMap toreturn = (GameMap) super.clone();
+        	// add new controller in replay mode
+        	toreturn.controller = new GameController();
+        	toreturn.controller.replay = true;
+        	return toreturn;
+		} catch (CloneNotSupportedException e) {
+			// should never happen
+			throw new RuntimeException(e);
+		}
     }
 }

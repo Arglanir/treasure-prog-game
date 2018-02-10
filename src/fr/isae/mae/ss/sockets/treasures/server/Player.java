@@ -5,6 +5,7 @@ package fr.isae.mae.ss.sockets.treasures.server;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -24,12 +25,20 @@ public class Player {
      */
     volatile Integer onMap = null;
 
+    /**
+     * Flag indicating if the player is connected
+     */
+    volatile boolean connected = false;
+
     /** Score of the player */
     final AtomicInteger score = new AtomicInteger(0);
 
+    /** If the player can win gain on map */
+    final AtomicBoolean canWin = new AtomicBoolean(true);
+
     /** Map of all players */
     final static Map<String, Player> ALL_PLAYERS = new HashMap<>();
-
+    
     /**
      * Constructor of Player
      * 
@@ -39,9 +48,13 @@ public class Player {
         super();
         this.name = name;
     }
+    
+    public void incrementScore(int by) {
+    	if (canWin.get()) score.addAndGet(by);
+    }
 
     /**
-     * Find a player name
+     * Find or create a player
      * 
      * @param name
      *            The name of a player

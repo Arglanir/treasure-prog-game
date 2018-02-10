@@ -10,11 +10,10 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import fr.isae.mae.ss.sockets.treasures.server.GameMap.PlayerAction;
+import fr.isae.mae.ss.sockets.treasures.server.PlayerAction.ActionParseException;
 
 /**
  * 
@@ -44,69 +43,62 @@ public class TreasureGameServer {
         @Override
         public void run() {
             Thread.currentThread().setName("Server-Thread-For-?");
-            name = "someone";
+            name = null;
+            String lastAction = null;
+            Player player = null;
             // create buffered streams
             try (PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
                     BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));) {
                 // read the name as first line
-                name = in.readLine();
+                name = in.readLine().replaceAll("\\s", "");
                 Thread.currentThread().setName("Server-Thread-For-" + name);
                 System.out.println(name + " is connected on " + clientSocket.getRemoteSocketAddress());
-                Player player = Player.get(name);
+                player = Player.get(name);
+                player.connected = true;
                 GameMap current = GameMap.ALL_MAPS.get(player.onMap);
                 if (current == null || player.onMap == null) {
-                    synchronized (GameMap.class) {
-                        // need to place him on a starting map
-                        GameMap first = current = GameMap.createFromString("Compete 100\n" +
-                                "      T      \n"+
-                                "              \n"+
-                                "              \n"+
-                                "              \n"+
-                                "  T   S   T  \n" +
-                                "             \n"+
-                                "              \n"+
-                                "              \n"+
-                                "      T       \n"
-                        );
-                        // get random first position
-                        Random random = new Random();
-                        int i = random.nextInt(first.spawnPoints.size());
-                        first.playersMap.put(name, (Coordinates) first.spawnPoints.toArray()[i]);
-
-                    }
+                	// may wait
+                    current = provider.provideMap(name, player.score.get());
+                    player.onMap = current.identifier;
                 }
                 // send some information
-                String tosend = current.getDefaultLine(name);
-                out.println(tosend);
+                ReturnedInfo returned = new ReturnedInfo();
+                current.fillDefaults(returned, current.playersMap.get(name));
+                out.println(returned.asMessageString());
                 // main loop
                 while (true) {
-                    String saction = in.readLine();
+                    String saction = lastAction = in.readLine();
                     PlayerAction action = new PlayerAction(name, saction);
-                    current.actions.add(action);
-                    String toreturn = action.perform(current, false);
-                    out.println(toreturn);
-                    if (toreturn.startsWith(GameMap.END_OF_MAP_TEMPLATE.substring(0, 5))
-                            && toreturn.split("\n").length > 1) {
-                        // treasure found and end of map - need to select new
-                        // one
-
+                    ReturnedInfo toreturn = current.controller.perform(action);
+                    out.println(toreturn.asMessageString());
+                    if (toreturn.endOfMap()) {
+                        player.onMap = null;
+                    	player.maps.incrementAndGet();
+                        // treasure found and end of map - need to select new one
+                    	// may wait
+                        current = provider.provideMap(name, player.score.get());
+                        player.onMap = current.identifier;
+                        returned = new ReturnedInfo();
+                        current.fillDefaults(returned, current.playersMap.get(name));
+                        out.println(returned.asMessageString());
                     }
                 }
 
-            } catch (IOException|NumberFormatException e) {
-                // problem?
-                System.out.println(e + " for " + clientSocket.getRemoteSocketAddress() + " (" + name + ")");
+            } catch (IOException|NumberFormatException|ActionParseException e) {
+                // connection or message problem?
+                System.err.println(e + " for " + clientSocket.getRemoteSocketAddress() + " (" + name + ") (last action: " + lastAction + ")");
             } catch (Throwable e) {
                 e.printStackTrace();
             } finally {
                 // end of communication
-                System.out
-                        .println("End communication with " + clientSocket.getRemoteSocketAddress() + " (" + name + ")");
+                System.out.println("End communication with " + clientSocket.getRemoteSocketAddress() + " (" + name + ")");
+                if (player != null) player.connected = false;
             }
         }
 
     }
 
+    private static MapProvider provider;
 
     /**
      * Main method
@@ -126,6 +118,8 @@ public class TreasureGameServer {
         } else {
             portNumber = Integer.parseInt(args[0]);
         }
+        
+        provider = new MapProvider(5);
 
         Thread serverListeningThread = new Thread("Server-Waiting-Thread") {
             public void run() {
@@ -149,6 +143,22 @@ public class TreasureGameServer {
             }
         };
         serverListeningThread.start();
+        // reading for stdin for commands
+        BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
+        String line;
+        while ((line = stdIn.readLine()) != null) {
+        	if (line.startsWith("who")) {
+        		Player.ALL_PLAYERS.values().forEach(player -> System.out.println(String.format("%s: c=%s m=%s s=%s", player.name, player.connected, player.maps, player.score)));
+        	} else if (line.startsWith("remove")) {
+        		try {
+        			String toremove = line.split("\\s+")[1];
+        			Player.ALL_PLAYERS.remove(toremove);
+        		} catch (ArrayIndexOutOfBoundsException e) {
+					System.err.println("Please give the name of the player...");
+				}
+        		
+        	}
+        }
 
     }
 
