@@ -197,7 +197,7 @@ public class TreasureGameServer {
         // remove a player
         serverCommands.put("activate", sl -> {
             try {
-                String toactivate = String.join(" ", sl);
+                String toactivate = String.join(" ", sl.subList(1, sl.size()));
                 provider.commonOptionLine = toactivate;
             } catch (ArrayIndexOutOfBoundsException | NullPointerException e) {
                 System.err.println("Please give the name of the player...");
