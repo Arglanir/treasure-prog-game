@@ -13,10 +13,12 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Represents a game map.
@@ -199,7 +201,9 @@ public class GameMap implements Cloneable {
             }
 
         }
-        System.out.println("Creating map! " + toreturn);
+        // randomize spawn points
+        IntStream.range(0, new Random().nextInt(toreturn.spawnPoints.size()))
+                .forEach(i -> toreturn.spawnPoints.add(toreturn.spawnPoints.remove(0)));
         return toreturn;
     }
 

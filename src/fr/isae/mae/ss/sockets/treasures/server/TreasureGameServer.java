@@ -170,6 +170,8 @@ public class TreasureGameServer {
         // help command
         serverCommands.put("help",
                 sl -> serverCommands.keySet().forEach(System.out::println));
+        // reload list of maps
+        serverCommands.put("reload", sl -> provider.reload());
         // remove a player
         serverCommands.put("remove",
                 sl -> {

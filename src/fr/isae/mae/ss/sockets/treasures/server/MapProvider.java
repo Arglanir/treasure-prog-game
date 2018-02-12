@@ -26,8 +26,11 @@ import java.util.regex.Pattern;
  */
 public class MapProvider {
     private static class WaitingPlayerInfo {
+        // name of player
         String name;
+        // gain of player (if need to choose another map
         Integer gain;
+        // the map they are waiting on
         String bestMap;
 
         /**
@@ -75,7 +78,7 @@ public class MapProvider {
     /**
      * Reloads the list of maps
      */
-    public void reload() {
+    public synchronized void reload() {
         URL listurl = getClass().getResource("/maplist.txt");
         File file;
         try {
@@ -314,6 +317,7 @@ public class MapProvider {
         if (nextMapIsForTheNextPlayers.size() == 0) {
             openedMap = null; // no new player awaited
         }
+        System.out.println("Map " + bestMap + " started for " + player + " " + otherPlayers);
         return toreturn;
     }
 
