@@ -41,6 +41,7 @@ public class ManualGameConsoleClient {
                 BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in))) {
             System.out.println("Write your name: ");
             out.println(stdIn.readLine() + "-manual");
+            System.out.println("Wait a little for a map to start...");
             while (true) {
                 String serverReturned = in.readLine();
                 if (serverReturned == null) {

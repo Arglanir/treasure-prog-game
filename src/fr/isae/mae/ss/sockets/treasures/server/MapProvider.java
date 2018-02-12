@@ -60,7 +60,7 @@ public class MapProvider {
 	private int playerCap;
 
 	/** The pattern on file names */
-	final static Pattern PATTERN_MAP_FILE_NAME = Pattern.compile("(\\\\d+)-(\\d+)-(\\d+)-(\\d+)-.*");
+	final static Pattern PATTERN_MAP_FILE_NAME = Pattern.compile("(\\d+)-(\\d+)-(\\d+)-(\\d+)-.*");
 	final static int GROUP_MIN_GAIN = 1;
 	final static int GROUP_MAX_GAIN = 2;
 	final static int GROUP_MIN_PLAYERS = 3;
@@ -69,6 +69,13 @@ public class MapProvider {
 	/** Constructor that loads every map in memory (not parsed yet) */
 	public MapProvider(int playerCap) {
 		this.playerCap = playerCap;
+		reload();
+	}
+
+	/**
+	 * Reloads the list of maps
+	 */
+	public void reload() {
 		URL listurl = getClass().getResource("/maplist.txt");
 		File file;
 		try {
@@ -76,12 +83,15 @@ public class MapProvider {
 		} catch (URISyntaxException e) {
 			file = new File(listurl.getPath());
 		}
+		int counter = 0;
 		if (file.exists()) { // real file found: we can read the folder directly
+			System.out.println("Reading maps from "+file.getAbsoluteFile().getParent());
 			for (File mapFile : file.getAbsoluteFile().getParentFile().listFiles()) {
 				if (PATTERN_MAP_FILE_NAME.matcher(mapFile.getName()).matches()) {
 					try {
 						String content = new String(Files.readAllBytes(mapFile.toPath()));
 						mapName2content.put(mapFile.getName(), content);
+						counter += 1;
 					} catch (IOException e) {
 						System.err.println("Problem for " + mapFile);
 						e.printStackTrace();
@@ -93,7 +103,7 @@ public class MapProvider {
 			// TODO
 			throw new UnsupportedOperationException("Loading maps from a jar is not supported yet.");
 		}
-
+		System.out.println(counter+ " maps loaded.");
 	}
 
 	/** {@link #wait(long)} that throws {@link RuntimeException} */
@@ -144,7 +154,7 @@ public class MapProvider {
 		waitingPlayers.add(myOwnInfo);
 		long start = System.currentTimeMillis();
 		while (System.currentTimeMillis() - start < MAXIMUM_WAIT) {
-			waiti(System.currentTimeMillis() - start + MAXIMUM_WAIT + 1);
+			waiti(MAXIMUM_WAIT - System.currentTimeMillis() + start + 1);
 			if (nextMapIsForTheNextPlayers.contains(player)) {
 				// ok i can play
 				nextMapIsForTheNextPlayers.remove(player);

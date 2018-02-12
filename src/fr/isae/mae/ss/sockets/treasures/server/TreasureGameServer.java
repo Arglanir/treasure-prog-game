@@ -10,8 +10,14 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 import fr.isae.mae.ss.sockets.treasures.server.PlayerAction.ActionParseException;
 
@@ -143,20 +149,46 @@ public class TreasureGameServer {
             }
         };
         serverListeningThread.start();
+        // the different server commands
+        Map<String, Consumer<List<String>>> serverCommands = new HashMap<>();
+        // getting list of players
+        serverCommands.put("who",
+        		sl -> {
+        			AtomicInteger nbconnected = new AtomicInteger(); 
+        			Player.ALL_PLAYERS.values().forEach(
+        				player ->  {
+        					nbconnected.addAndGet(player.connected ? 1 : 0);
+        					System.out.println(
+        						String.format("%s: c=%s m=%s s=%s", player.name, player.connected, player.maps, player.score)
+        						);}
+        				);
+        			System.out.println(Player.ALL_PLAYERS.size() + " players, " + nbconnected.get() + " connected.");
+        			}
+        		);
+        // help command
+        serverCommands.put("help",
+        		sl -> serverCommands.keySet().forEach(System.out::println)
+        		);
+        // remove a player
+        serverCommands.put("remove",
+        		sl -> {
+        			try {
+            			String toremove = sl.get(1);
+            			Player.ALL_PLAYERS.remove(toremove);
+            		} catch (ArrayIndexOutOfBoundsException e) {
+    					System.err.println("Please give the name of the player...");
+    				}
+        		}
+        		);
+        
         // reading for stdin for commands
         BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
         String line;
         while ((line = stdIn.readLine()) != null) {
-        	if (line.startsWith("who")) {
-        		Player.ALL_PLAYERS.values().forEach(player -> System.out.println(String.format("%s: c=%s m=%s s=%s", player.name, player.connected, player.maps, player.score)));
-        	} else if (line.startsWith("remove")) {
-        		try {
-        			String toremove = line.split("\\s+")[1];
-        			Player.ALL_PLAYERS.remove(toremove);
-        		} catch (ArrayIndexOutOfBoundsException e) {
-					System.err.println("Please give the name of the player...");
-				}
-        		
+        	List<String> arguments = Arrays.asList(line.split("\\s+"));
+        	Consumer<List<String>> torun = serverCommands.get(line.split("\\s+")[0].toLowerCase());
+        	if (torun != null) {
+        		torun.accept(arguments);
         	}
         }
 
