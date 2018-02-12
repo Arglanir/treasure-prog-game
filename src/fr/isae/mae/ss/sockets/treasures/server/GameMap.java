@@ -178,24 +178,36 @@ public class GameMap implements Cloneable {
         // create map
         GameMap toreturn = new GameMap(sizeX, sizeY, walls,
                 spawnPoints, treasures);
+        toreturn.applyOptions(optionLine);
+        // randomize spawn points
+        IntStream.range(0, new Random().nextInt(toreturn.spawnPoints.size()))
+                .forEach(i -> toreturn.spawnPoints.add(toreturn.spawnPoints.remove(0)));
+        return toreturn;
+    }
+
+    /** Apply given options */
+    void applyOptions(String optionLine) {
+        if (optionLine == null) {
+            return;
+        }
         // handle options
         for (String option: optionLine.split("\\s+")) {
             if (option.length() == 0)
                 continue;
             // every action is authorized
             if ("allActions".equals(option)) {
-                toreturn.enabledActions.forEach((action, enabled) -> toreturn.enabledActions.put(action, true));
+                this.enabledActions.forEach((action, enabled) -> this.enabledActions.put(action, true));
                 continue;
             }
             String[] optionValue = option.split("=");
             try { // try if it is a map option
                 GameMapOptions realOption = GameMapOptions.valueOf(optionValue[0].toUpperCase());
-                toreturn.options.put(realOption, optionValue.length == 1);
+                this.options.put(realOption, optionValue.length == 1);
             } catch (IllegalArgumentException e) {
                 // may be for an action
                 try {
                     PlayerAction.ActionType actionType = PlayerAction.ActionType.valueOf(optionValue[0].toUpperCase());
-                    toreturn.enabledActions.put(actionType, true);
+                    this.enabledActions.put(actionType, true);
                 } catch (IllegalArgumentException e2) {
                     System.err.println("Unable to parse option " + option);
                 }
@@ -203,10 +215,6 @@ public class GameMap implements Cloneable {
             }
 
         }
-        // randomize spawn points
-        IntStream.range(0, new Random().nextInt(toreturn.spawnPoints.size()))
-                .forEach(i -> toreturn.spawnPoints.add(toreturn.spawnPoints.remove(0)));
-        return toreturn;
     }
 
     /**

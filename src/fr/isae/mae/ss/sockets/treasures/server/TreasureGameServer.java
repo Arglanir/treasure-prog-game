@@ -74,6 +74,9 @@ public class TreasureGameServer {
                 // main loop
                 while (true) {
                     String saction = lastAction = in.readLine();
+                    if (saction == null) {
+                        break; // end of communication
+                    }
                     PlayerAction action = new PlayerAction(name, saction);
                     ReturnedInfo toreturn = current.controller.perform(action);
                     out.println(toreturn.asMessageString());
@@ -187,6 +190,15 @@ public class TreasureGameServer {
             try {
                 String toremove = sl.get(1);
                 Player.ALL_PLAYERS.get(toremove).connectedThread.interrupt();
+            } catch (ArrayIndexOutOfBoundsException | NullPointerException e) {
+                System.err.println("Please give the name of the player...");
+            }
+        });
+        // remove a player
+        serverCommands.put("activate", sl -> {
+            try {
+                String toactivate = String.join(" ", sl);
+                provider.commonOptionLine = toactivate;
             } catch (ArrayIndexOutOfBoundsException | NullPointerException e) {
                 System.err.println("Please give the name of the player...");
             }

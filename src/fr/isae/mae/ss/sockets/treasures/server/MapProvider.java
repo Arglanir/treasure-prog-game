@@ -62,6 +62,9 @@ public class MapProvider {
     /** The player capacity of the server. Don't wait for more people. */
     private int playerCap;
 
+    /** Activated options */
+    String commonOptionLine;
+
     /** The pattern on file names */
     final static Pattern PATTERN_MAP_FILE_NAME = Pattern.compile("(\\d+)-(\\d+)-(\\d+)-(\\d+)-.*");
     final static int GROUP_MIN_GAIN = 1;
@@ -301,6 +304,7 @@ public class MapProvider {
     private GameMap startMapWithPlayers(String player, String bestMap, List<String> otherPlayers) {
         // create map
         openedMap = GameMap.createFromString(mapName2content.get(bestMap));
+        openedMap.applyOptions(commonOptionLine);
         if (player != null) {
             openedMap.addPlayer(player);
         }

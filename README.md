@@ -10,7 +10,7 @@ You may check the [conception](src/fr/isae/mae/ss/sockets/treasures/server/Conce
 The server returns a string `X Y PPPPOPPPP I`
 
 *   `X Y`: the position (0 0 is top left)
-*   `POP`: what is around (`.` nothing, `#` a wall, `P` a player)
+*   `POP`: what is around (`.` nothing, `#` a wall, `P` a player, `T` a treasure)
 *   `I`: the intensity (depending on the treasure and the distance)
 
 
