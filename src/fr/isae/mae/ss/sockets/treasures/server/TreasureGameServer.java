@@ -60,10 +60,10 @@ public class TreasureGameServer {
                 Thread.currentThread().setName("Server-Thread-For-" + name);
                 System.out.println(name + " is connected on " + clientSocket.getRemoteSocketAddress());
                 player = Player.get(name);
-                player.connected = true;
+                player.connectedThread = Thread.currentThread();
                 GameMap current = GameMap.ALL_MAPS.get(player.onMap);
                 if (current == null || player.onMap == null) {
-                	// may wait
+                    // may wait
                     current = provider.provideMap(name, player.score.get());
                     player.onMap = current.identifier;
                 }
@@ -79,9 +79,9 @@ public class TreasureGameServer {
                     out.println(toreturn.asMessageString());
                     if (toreturn.endOfMap()) {
                         player.onMap = null;
-                    	player.maps.incrementAndGet();
+                        player.maps.incrementAndGet();
                         // treasure found and end of map - need to select new one
-                    	// may wait
+                        // may wait
                         current = provider.provideMap(name, player.score.get());
                         player.onMap = current.identifier;
                         returned = new ReturnedInfo();
@@ -93,12 +93,17 @@ public class TreasureGameServer {
             } catch (IOException|NumberFormatException|ActionParseException e) {
                 // connection or message problem?
                 System.err.println(e + " for " + clientSocket.getRemoteSocketAddress() + " (" + name + ") (last action: " + lastAction + ")");
+            } catch (NullPointerException e) {
+                // Problem of map
+                System.err
+                        .println("No more map for player " + name);
             } catch (Throwable e) {
                 e.printStackTrace();
             } finally {
                 // end of communication
                 System.out.println("End communication with " + clientSocket.getRemoteSocketAddress() + " (" + name + ")");
-                if (player != null) player.connected = false;
+                if (player != null)
+                    player.connectedThread = null;
             }
         }
 
@@ -153,43 +158,47 @@ public class TreasureGameServer {
         Map<String, Consumer<List<String>>> serverCommands = new HashMap<>();
         // getting list of players
         serverCommands.put("who",
-        		sl -> {
-        			AtomicInteger nbconnected = new AtomicInteger(); 
-        			Player.ALL_PLAYERS.values().forEach(
-        				player ->  {
-        					nbconnected.addAndGet(player.connected ? 1 : 0);
-        					System.out.println(
-        						String.format("%s: c=%s m=%s s=%s", player.name, player.connected, player.maps, player.score)
-        						);}
-        				);
-        			System.out.println(Player.ALL_PLAYERS.size() + " players, " + nbconnected.get() + " connected.");
-        			}
-        		);
+                sl -> {
+                    AtomicInteger nbconnected = new AtomicInteger();
+                    Player.ALL_PLAYERS.values().forEach(player -> {
+                        nbconnected.addAndGet(player.connectedThread != null ? 1 : 0);
+                        System.out.println(String.format("%s: c=%s m=%s s=%s", player.name, player.connectedThread != null, player.maps,
+                                player.score));
+                    });
+                    System.out.println(Player.ALL_PLAYERS.size() + " players, " + nbconnected.get() + " connected.");
+                });
         // help command
         serverCommands.put("help",
-        		sl -> serverCommands.keySet().forEach(System.out::println)
-        		);
+                sl -> serverCommands.keySet().forEach(System.out::println));
         // remove a player
         serverCommands.put("remove",
-        		sl -> {
-        			try {
-            			String toremove = sl.get(1);
-            			Player.ALL_PLAYERS.remove(toremove);
-            		} catch (ArrayIndexOutOfBoundsException e) {
-    					System.err.println("Please give the name of the player...");
-    				}
-        		}
-        		);
+                sl -> {
+                    try {
+                        String toremove = sl.get(1);
+                        Player.ALL_PLAYERS.remove(toremove);
+                    } catch (ArrayIndexOutOfBoundsException e) {
+                        System.err.println("Please give the name of the player...");
+                    }
+                });
+        // remove a player
+        serverCommands.put("disconnect", sl -> {
+            try {
+                String toremove = sl.get(1);
+                Player.ALL_PLAYERS.get(toremove).connectedThread.interrupt();
+            } catch (ArrayIndexOutOfBoundsException | NullPointerException e) {
+                System.err.println("Please give the name of the player...");
+            }
+        });
         
         // reading for stdin for commands
         BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
         String line;
         while ((line = stdIn.readLine()) != null) {
-        	List<String> arguments = Arrays.asList(line.split("\\s+"));
-        	Consumer<List<String>> torun = serverCommands.get(line.split("\\s+")[0].toLowerCase());
-        	if (torun != null) {
-        		torun.accept(arguments);
-        	}
+            List<String> arguments = Arrays.asList(line.split("\\s+"));
+            Consumer<List<String>> torun = serverCommands.get(line.split("\\s+")[0].toLowerCase());
+            if (torun != null) {
+                torun.accept(arguments);
+            }
         }
 
     }

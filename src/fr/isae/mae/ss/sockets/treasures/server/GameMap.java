@@ -13,7 +13,6 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
@@ -25,17 +24,21 @@ import java.util.stream.Collectors;
  * @author Cedric Mayer, 2018
  */
 public class GameMap implements Cloneable {
-	/** Game map options */
-	public static enum GameMapOptions {
-		/** Indicates if the treasure is shared with every one. If one treasure is found, the map is finished. */
-		SHARED(false);
-		/** default value */
-		Object defaut;
-		private GameMapOptions(Object def) {
-			defaut = def;
-		}
-	}
-	
+    /** Game map options */
+    public static enum GameMapOptions {
+        /**
+         * Indicates if the treasure is shared with every one. If one treasure
+         * is found, the map is finished.
+         */
+        SHARED(false);
+        /** default value */
+        Object defaut;
+
+        private GameMapOptions(Object def) {
+            defaut = def;
+        }
+    }
+
     /** Maximum size of grid */
     public final static int MAXXY = 200;
 
@@ -88,22 +91,22 @@ public class GameMap implements Cloneable {
         ALL_MAPS.put(identifier, this);
         // fill map of options
         for (GameMapOptions option: GameMapOptions.values()) {
-        	options.put(option, option.defaut);
+            options.put(option, option.defaut);
         }
         // fill map of enabledActions
         for (PlayerAction.ActionType actionType: PlayerAction.ActionType.values()) {
-        	enabledActions.put(actionType, actionType.ordinal() < 4);
+            enabledActions.put(actionType, actionType.ordinal() < 4);
         }
         controller.map = this;
     }
     
     /** Add a player to the game, at the first position, then rotate the positions */
     public void addPlayer(String player) {
-    	if (!playersMap.containsKey(player)) {
-    		Coordinates coords = spawnPoints.get(0);
-    		spawnPoints.add(spawnPoints.remove(0));
+        if (!playersMap.containsKey(player)) {
+            Coordinates coords = spawnPoints.get(0);
+            spawnPoints.add(spawnPoints.remove(0));
             playersMap.put(player, coords);
-    	}
+        }
     }
 
     /*
@@ -137,7 +140,7 @@ public class GameMap implements Cloneable {
         int sizeY = lines.size();
         int sizeX = lines.stream().map(line -> line.length()).max(Integer::compare).get();
         if (treasureLine.size() == 0) {
-        	treasureLine = Collections.singletonList(100);
+            treasureLine = Collections.singletonList(100);
         }
         // read each cell of map
         for (int y = 0; y < sizeY; y++) {
@@ -146,10 +149,10 @@ public class GameMap implements Cloneable {
                 try {
                     switch (lines.get(y).charAt(x)) {
                     case 'T':
-                    	int treasureValue = treasureLine.get(0);
-                    	if (treasureLine.size() > 1) {
-                    		treasureLine.remove(0);
-                    	}
+                        int treasureValue = treasureLine.get(0);
+                        if (treasureLine.size() > 1) {
+                            treasureLine.remove(0);
+                        }
                         treasures.put(c, treasureValue);
                         break;
                     case '#':
@@ -173,28 +176,30 @@ public class GameMap implements Cloneable {
                 spawnPoints, treasures);
         // handle options
         for (String option: optionLine.split("\\s+")) {
-        	if (option.length()==0) continue;
-        	// every action is authorized
-			if ("allActions".equals(option)) {
-				toreturn.enabledActions.forEach((action, enabled) -> toreturn.enabledActions.put(action, true));
-				continue;
-			}
-        	String[] optionValue = option.split("=");
-        	try { // try if it is a map option
-        		GameMapOptions realOption = GameMapOptions.valueOf(optionValue[0].toUpperCase());
-        		toreturn.options.put(realOption, optionValue.length == 1);
-        	} catch (IllegalArgumentException e) {
-        		// may be for an action
-				try {
-					PlayerAction.ActionType actionType = PlayerAction.ActionType.valueOf(optionValue[0].toUpperCase());
-					toreturn.enabledActions.put(actionType, true);
-				} catch (IllegalArgumentException e2) {
-					System.err.println("Unable to parse option "+option);
-				}
-				
-			}
-        	
+            if (option.length() == 0)
+                continue;
+            // every action is authorized
+            if ("allActions".equals(option)) {
+                toreturn.enabledActions.forEach((action, enabled) -> toreturn.enabledActions.put(action, true));
+                continue;
+            }
+            String[] optionValue = option.split("=");
+            try { // try if it is a map option
+                GameMapOptions realOption = GameMapOptions.valueOf(optionValue[0].toUpperCase());
+                toreturn.options.put(realOption, optionValue.length == 1);
+            } catch (IllegalArgumentException e) {
+                // may be for an action
+                try {
+                    PlayerAction.ActionType actionType = PlayerAction.ActionType.valueOf(optionValue[0].toUpperCase());
+                    toreturn.enabledActions.put(actionType, true);
+                } catch (IllegalArgumentException e2) {
+                    System.err.println("Unable to parse option " + option);
+                }
+
+            }
+
         }
+        System.out.println("Creating map! " + toreturn);
         return toreturn;
     }
 
@@ -218,7 +223,7 @@ public class GameMap implements Cloneable {
     public Double computeIntensity(Coordinates coords) {
         return treasures.entrySet().stream()
                 .map(entry -> INTENSITY_FUNCTION.apply(entry.getValue(), entry.getKey().distance(coords)))
-                .max(Double::compare).get();
+                .max(Double::compare).orElse(null);
     }
 
     /** What character represents the given position? */
@@ -245,10 +250,10 @@ public class GameMap implements Cloneable {
 
     /** Fills the given {@link ReturnedInfo} with the data present at given {@link Coordinates} */
     public void fillDefaults(ReturnedInfo returned, Coordinates player) {
-    	returned.x = player.x;
-    	returned.y = player.y;
-    	returned.display = charsAroundPos(player, 1);
-    	returned.intensity = computeIntensity(player);
+        returned.x = player.x;
+        returned.y = player.y;
+        returned.display = charsAroundPos(player, 1);
+        returned.intensity = computeIntensity(player);
     }
 
     /** List that stores every action on the map, in order */
@@ -256,16 +261,16 @@ public class GameMap implements Cloneable {
 
     @Override
     public GameMap clone() {
-    	// clone the map for a replay
+        // clone the map for a replay
         try {
-        	GameMap toreturn = (GameMap) super.clone();
-        	// add new controller in replay mode
-        	toreturn.controller = new GameController();
-        	toreturn.controller.replay = true;
-        	return toreturn;
-		} catch (CloneNotSupportedException e) {
-			// should never happen
-			throw new RuntimeException(e);
-		}
+            GameMap toreturn = (GameMap) super.clone();
+            // add new controller in replay mode
+            toreturn.controller = new GameController();
+            toreturn.controller.replay = true;
+            return toreturn;
+        } catch (CloneNotSupportedException e) {
+            // should never happen
+            throw new RuntimeException(e);
+        }
     }
 }

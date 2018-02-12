@@ -28,7 +28,7 @@ public class Player {
     /**
      * Flag indicating if the player is connected
      */
-    volatile boolean connected = false;
+    volatile Thread connectedThread = null;
 
     /** Score of the player */
     final AtomicInteger score = new AtomicInteger(0);

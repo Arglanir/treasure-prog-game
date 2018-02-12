@@ -11,7 +11,7 @@ public class ReturnedInfo {
 	/** Template for end of map */
 	public final static String END_OF_MAP_TEMPLATE = "Found %s gold. %s treasures left.";
 	/** Template for normal information */
-	public final static String NORMAL_TEMPLATE = "%s %s %s %s %s %s";
+    public final static String NORMAL_TEMPLATE = "%s %s %s %s %s";
 	/** Subclass when a treasure is found. */
 	public static class TreasureFound extends ReturnedInfo {
 		/** The found gold */
