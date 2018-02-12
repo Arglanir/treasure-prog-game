@@ -95,8 +95,8 @@ public class TreasureGameServer {
                 System.err.println(e + " for " + clientSocket.getRemoteSocketAddress() + " (" + name + ") (last action: " + lastAction + ")");
             } catch (NullPointerException e) {
                 // Problem of map
-                System.err
-                        .println("No more map for player " + name);
+                System.err.println("No more map for player " + name);
+                e.printStackTrace();
             } catch (Throwable e) {
                 e.printStackTrace();
             } finally {

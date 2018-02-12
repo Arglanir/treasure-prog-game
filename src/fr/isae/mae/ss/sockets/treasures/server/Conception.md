@@ -14,5 +14,6 @@ Stores everything about the map
 Handles PlayerAction to the map
 
 ## Map provider
-returns a map for a player to play on
-may wait before returning a map
+returns a map for a player to play on ;
+may wait before returning a map (for multiple players)
+
