@@ -29,7 +29,7 @@ public class ManualGameConsoleClient {
             System.err.println("Usage: java EchoClient <host name> <port number>");
             // System.exit(1);
             hostName = "localhost";
-            portNumber = 8765;
+            portNumber = 1256;
         } else {
             hostName = args[0];
             portNumber = Integer.parseInt(args[1]);

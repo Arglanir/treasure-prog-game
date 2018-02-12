@@ -125,7 +125,7 @@ public class TreasureGameServer {
         if (args.length != 1) {
             System.err.println("Usage: java " + TreasureGameServer.class.getName() + " <port number>");
             // System.exit(1);
-            portNumber = 8765;
+            portNumber = 1256;
         } else {
             portNumber = Integer.parseInt(args[0]);
         }

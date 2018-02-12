@@ -7,12 +7,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -228,6 +230,22 @@ public class GameMap implements Cloneable {
         return treasures.entrySet().stream()
                 .map(entry -> INTENSITY_FUNCTION.apply(entry.getValue(), entry.getKey().distance(coords)))
                 .max(Double::compare).orElse(null);
+    }
+
+    /** Computes the intensity */
+    public Coordinates mostIntensityTreasure(Coordinates coords) {
+        Comparator<Entry<Coordinates, Integer>> comp = (o1, o2) -> {
+            double io1 = INTENSITY_FUNCTION.apply(o1.getValue(), o1.getKey().distance(coords));
+            double io2 = INTENSITY_FUNCTION.apply(o2.getValue(), o2.getKey().distance(coords));
+            return Double.compare(io1, io2);
+        };
+        // apply this comparator
+        Entry<Coordinates, Integer> entry = treasures.entrySet().stream().max(comp).orElse(null);
+        Coordinates toreturn = new Coordinates(0, 0);
+        if (entry != null) {
+            toreturn = entry.getKey();
+        }
+        return toreturn;
     }
 
     /** What character represents the given position? */

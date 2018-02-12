@@ -98,4 +98,14 @@ public class Coordinates {
     public double distance(Coordinates coords) {
         return vectorTo(coords).distanceTo0();
     }
+
+    /** Angle in degree to other point (0: to the left, 90: to the bottom) */
+    public double trigo(Coordinates coords) {
+        Coordinates vect = vectorTo(coords);
+        double abs = vect.distanceTo0();
+        double dx = vect.x / abs;
+        double dy = vect.y / abs;
+        return Math.toDegrees(Math.atan2(dy, dx));
+
+    }
 }
