@@ -10,6 +10,7 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -60,6 +61,11 @@ public class TreasureGameServer {
                 Thread.currentThread().setName("Server-Thread-For-" + name);
                 System.out.println(name + " is connected on " + clientSocket.getRemoteSocketAddress());
                 player = Player.get(name);
+                // only one connection please
+                if (player.connectedThread != null) {
+                	out.println("You are already connected. Please change your name");
+                	throw new IOException("Already connected.");
+                }
                 player.connectedThread = Thread.currentThread();
                 GameMap current = GameMap.ALL_MAPS.get(player.onMap);
                 if (current == null || player.onMap == null) {
@@ -79,6 +85,7 @@ public class TreasureGameServer {
                     }
                     PlayerAction action = new PlayerAction(name, saction);
                     ReturnedInfo toreturn = current.controller.perform(action);
+                    player.nbactions.incrementAndGet();
                     out.println(toreturn.asMessageString());
                     if (toreturn.endOfMap()) {
                         player.onMap = null;
@@ -126,9 +133,9 @@ public class TreasureGameServer {
         final int portNumber;
         // helped by https://docs.oracle.com/javase/tutorial/networking/sockets/readingWriting.html
         if (args.length != 1) {
-            System.err.println("Usage: java " + TreasureGameServer.class.getName() + " <port number>");
+            //System.err.println("Usage: java " + TreasureGameServer.class.getName() + " <port number>");
             // System.exit(1);
-            portNumber = 1256;
+            portNumber = 8081;
         } else {
             portNumber = Integer.parseInt(args[0]);
         }
@@ -165,8 +172,8 @@ public class TreasureGameServer {
                     AtomicInteger nbconnected = new AtomicInteger();
                     Player.ALL_PLAYERS.values().forEach(player -> {
                         nbconnected.addAndGet(player.connectedThread != null ? 1 : 0);
-                        System.out.println(String.format("%s: c=%s m=%s s=%s", player.name, player.connectedThread != null, player.maps,
-                                player.score));
+                        System.out.println(String.format("%s: c=%s m=%s s=%s a=%s", player.name, player.connectedThread != null, player.maps,
+                                player.score, player.nbactions));
                     });
                     System.out.println(Player.ALL_PLAYERS.size() + " players, " + nbconnected.get() + " connected.");
                 });
@@ -194,13 +201,37 @@ public class TreasureGameServer {
                 System.err.println("Please give the name of the player...");
             }
         });
-        // remove a player
+        // activate actions
         serverCommands.put("activate", sl -> {
             try {
                 String toactivate = String.join(" ", sl.subList(1, sl.size()));
                 provider.commonOptionLine = toactivate;
             } catch (ArrayIndexOutOfBoundsException | NullPointerException e) {
                 System.err.println("Please give the name of the player...");
+            }
+        });
+        // create arena
+        serverCommands.put("prepare", sl -> {
+            try {
+            	provider.prepareArena(sl.subList(1, sl.size()));
+            } catch (ArrayIndexOutOfBoundsException | NullPointerException e) {
+                System.err.println("Please give the name of the player...");
+            }
+        });
+        // start arena
+        serverCommands.put("start", sl -> {
+            try {
+            	synchronized (provider) {
+                	provider.startArena(sl.get(1));
+                	List<String> players = new ArrayList<>(provider.nextArenaFor);
+                	System.out.println("Arena started for "+provider.nextArenaFor);
+					while(!provider.nextArenaFor.isEmpty()) {
+						provider.waiti(0);
+					}
+					provider.prepareArena(players);
+				}
+            } catch (ArrayIndexOutOfBoundsException | NullPointerException e) {
+                System.err.println("Please give the map name... like "+provider.mapName2content.keySet());
             }
         });
         

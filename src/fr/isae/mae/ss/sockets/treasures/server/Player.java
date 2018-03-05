@@ -33,6 +33,9 @@ public class Player {
     /** Score of the player */
     final AtomicInteger score = new AtomicInteger(0);
 
+    /** Score of the player */
+    final AtomicInteger nbactions = new AtomicInteger(0);
+
     /** If the player can win gain on map */
     final AtomicBoolean canWin = new AtomicBoolean(true);
 

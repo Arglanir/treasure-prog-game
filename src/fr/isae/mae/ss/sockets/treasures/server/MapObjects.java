@@ -19,4 +19,5 @@ public enum MapObjects {
     private MapObjects(String ch) {
         asChar = ch;
     }
+    
 }

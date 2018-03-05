@@ -8,6 +8,8 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -58,6 +60,16 @@ public class MapProvider {
     Set<String> nextMapIsForTheNextPlayers = new HashSet<>();
     /** The map they can play on */
     GameMap openedMap = null;
+    
+    
+    // a specific arena
+    /** Set of players that can play on the given map */
+    Set<String> nextArenaFor = new HashSet<>();
+    /** The map they can play on */
+    GameMap openedArena = null;
+    
+    
+    
 
     /** The player capacity of the server. Don't wait for more people. */
     private int playerCap;
@@ -114,7 +126,7 @@ public class MapProvider {
     }
 
     /** {@link #wait(long)} that throws {@link RuntimeException} */
-    private void waiti(long timeout) {
+    void waiti(long timeout) {
         try {
             wait();
         } catch (InterruptedException e) {
@@ -122,9 +134,45 @@ public class MapProvider {
             throw new RuntimeException(e);
         }
     }
-
+    
+    /** provide a map for the given player and gain */
     public synchronized GameMap provideMap(String player, int currentGain) {
-        return provideMapMono(player, currentGain);
+    	GameMap toreturn = waitArena(player);
+    	if (toreturn == null) {
+    		toreturn = provideMapMono(player, currentGain);
+    	}
+    	return toreturn;
+    }
+    
+    /** This will prepare an arena for given players */
+    synchronized void prepareArena(Collection<String> players) {
+    	nextArenaFor.clear();
+    	nextArenaFor.addAll(players);
+    	notifyAll();
+    }
+
+    /** This will prepare an arena for given players */
+    synchronized void startArena(String map) {
+    	GameMap newMap = startMapWithPlayers(null, map, null);
+    	nextArenaFor.forEach(newMap::addPlayer);
+    	openedArena = newMap;
+    	notifyAll();
+    }
+    
+    /** get the arena if one is opened */
+    private synchronized GameMap waitArena(String player) {
+    	GameMap toreturn = null;
+    	if (nextArenaFor.contains(player)) {
+    		while (openedArena == null && nextArenaFor.contains(player)) {
+    			waiti(0);
+    		}
+    		if (nextArenaFor.contains(player)) {
+    			toreturn = openedArena;
+    			nextArenaFor.remove(player);
+    			notifyAll();
+    		}
+    	}
+    	return toreturn;
     }
 
     private synchronized GameMap provideMapMono(String player, int currentGain) {
