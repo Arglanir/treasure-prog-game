@@ -26,7 +26,7 @@ public class ManualGameConsoleClient {
         // helped by
         // https://docs.oracle.com/javase/tutorial/networking/sockets/readingWriting.html
         if (args.length != 2) {
-            System.err.println("Usage: java EchoClient <host name> <port number>");
+            System.err.println("Usage: java " + ManualGameConsoleClient.class.getName() + " <host name> <port number>");
             // System.exit(1);
             hostName = "localhost";
             portNumber = 8081;
@@ -35,13 +35,16 @@ public class ManualGameConsoleClient {
             portNumber = Integer.parseInt(args[1]);
         }
 
+        // connect and open streams
         try (Socket clientSocket = new Socket(hostName, portNumber);
                 PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
                 BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                 BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in))) {
+        	// ask for name
             System.out.println("Write your name: ");
             out.println(stdIn.readLine() + "-manual");
             System.out.println("Wait a little for a map to start...");
+            // main loop
             while (true) {
                 String serverReturned = in.readLine();
                 if (serverReturned == null) {
@@ -58,6 +61,8 @@ public class ManualGameConsoleClient {
                     }
                     System.out.println(serverReturned);
                 }
+                // maybe you could parse serverReturned to display the map in the console directly?
+                
                 // read and send
                 String userInput = stdIn.readLine();
                 out.println(userInput);

@@ -3,10 +3,13 @@
  */
 package fr.isae.mae.ss.sockets.treasures.server;
 
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import fr.isae.mae.ss.sockets.treasures.server.PlayerAction.ActionType;
 
 /**
  * Player class
@@ -33,11 +36,14 @@ public class Player {
     /** Score of the player */
     final AtomicInteger score = new AtomicInteger(0);
 
-    /** Score of the player */
+    /** Number of action he has done */
     final AtomicInteger nbactions = new AtomicInteger(0);
 
     /** If the player can win gain on map */
     final AtomicBoolean canWin = new AtomicBoolean(true);
+    
+    /** Map that holds a counter for next possible actions */
+    final Map<ActionType, Long> whenNextActivationPossible = new EnumMap<>(ActionType.class);
 
     /** Map of all players */
     final static Map<String, Player> ALL_PLAYERS = new HashMap<>();

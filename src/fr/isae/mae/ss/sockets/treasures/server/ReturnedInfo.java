@@ -31,6 +31,11 @@ public class ReturnedInfo {
         }
 
         @Override
+		public int foundGold() {
+        	return goldFound;
+        }
+        
+        @Override
         public boolean endOfMap() {
             return nbTreasuresLeft <= 0;
         }
@@ -54,6 +59,10 @@ public class ReturnedInfo {
      */
     public boolean endOfMap() {
         return false;
+    }
+    
+    public int foundGold() {
+    	return 0;
     }
 
     /**

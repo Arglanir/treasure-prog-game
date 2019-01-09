@@ -27,9 +27,18 @@ public class PlayerAction {
      * @author Cedric
      */
     public static enum ActionType {
-        UP(true, false, false, false, 0), DOWN(true, false, false, false, 0), LEFT(true, false, false, false, 0), RIGHT(true, false, false,
-                false, 0), TELEPORT(true, false, false, false, 2), CALL(false, false, false, true, 0), FLASH(false, false, true, false,
-                        0), STUN(false, false, false, false, 0), TRIGO(false, true, false, false, 0), EVAL(false, true, false, false, 0),;
+        UP(true, false, false, false, 0),
+        DOWN(true, false, false, false, 0),
+        LEFT(true, false, false, false, 0),
+        RIGHT(true, false, false, false, 0),
+        TELEPORT(true, false, false, false, 2),
+        CALL(false, false, false, true, 0),
+        FLASH(false, false, true, false, 0),
+        STUN(false, false, false, false, 0),
+        TRIGO(false, true, false, false, 0),
+        HELP(false, false, false, true, 0),
+        EVAL(false, true, false, false, 0),;
+    	
         /** a movement action */
         final boolean isMovement;
         /** a change intensity */

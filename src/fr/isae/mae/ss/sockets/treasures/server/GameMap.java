@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
@@ -59,10 +60,10 @@ public class GameMap implements Cloneable {
     final int identifier = IDENTIFIER_GENERATOR.incrementAndGet();
 
     /** Map of players to their coordinate */
-    final Map<String, Coordinates> playersMap = new HashMap<>();
+    final Map<String, Coordinates> playersMap = new ConcurrentHashMap<>();
 
     /** Map of treasures */
-    final Map<Coordinates, Integer> treasures = new HashMap<>();
+    final Map<Coordinates, Integer> treasures = new ConcurrentHashMap<>();
 
     /** Real size of map */
     final int sizeX;
@@ -80,6 +81,7 @@ public class GameMap implements Cloneable {
     /** Options of the map */
     final Map<PlayerAction.ActionType, Boolean> enabledActions = new EnumMap<>(PlayerAction.ActionType.class);
     
+    // controller of the map
     GameController controller = new GameController();
 
     /** Constructor */
@@ -200,14 +202,16 @@ public class GameMap implements Cloneable {
                 continue;
             }
             String[] optionValue = option.split("=");
+            boolean activated = optionValue.length == 1 || optionValue[1].equalsIgnoreCase("true")
+            		 || optionValue[1].toLowerCase().startsWith("y");
             try { // try if it is a map option
                 GameMapOptions realOption = GameMapOptions.valueOf(optionValue[0].toUpperCase());
-                this.options.put(realOption, optionValue.length == 1);
+                this.options.put(realOption, activated);
             } catch (IllegalArgumentException e) {
                 // may be for an action
                 try {
                     PlayerAction.ActionType actionType = PlayerAction.ActionType.valueOf(optionValue[0].toUpperCase());
-                    this.enabledActions.put(actionType, true);
+                    this.enabledActions.put(actionType, activated);
                 } catch (IllegalArgumentException e2) {
                     System.err.println("Unable to parse option " + option);
                 }

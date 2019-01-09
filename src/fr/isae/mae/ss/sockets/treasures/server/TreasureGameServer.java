@@ -63,8 +63,8 @@ public class TreasureGameServer {
                 player = Player.get(name);
                 // only one connection please
                 if (player.connectedThread != null) {
-                	out.println("You are already connected. Please change your name");
-                	throw new IOException("Already connected.");
+                    out.println("You are already connected. Please change your name");
+                    throw new IOException("Already connected.");
                 }
                 player.connectedThread = Thread.currentThread();
                 GameMap current = GameMap.ALL_MAPS.get(player.onMap);
@@ -83,17 +83,24 @@ public class TreasureGameServer {
                     if (saction == null) {
                         break; // end of communication
                     }
+                    // perform the asked action
                     PlayerAction action = new PlayerAction(name, saction);
                     ReturnedInfo toreturn = current.controller.perform(action);
                     player.nbactions.incrementAndGet();
+                    // send the result to the player
                     out.println(toreturn.asMessageString());
+                	if (toreturn.foundGold() > 0) {
+                		System.out.println("Player " + name + " found " + toreturn.foundGold() + " gold.");
+                	}
                     if (toreturn.endOfMap()) {
+                        // end of map: need another one
                         player.onMap = null;
                         player.maps.incrementAndGet();
                         // treasure found and end of map - need to select new one
                         // may wait
                         current = provider.provideMap(name, player.score.get());
                         player.onMap = current.identifier;
+                        // on a new map: return the location information
                         returned = new ReturnedInfo();
                         current.fillDefaults(returned, current.playersMap.get(name));
                         out.println(returned.asMessageString());
@@ -143,6 +150,7 @@ public class TreasureGameServer {
         provider = new MapProvider(5);
 
         Thread serverListeningThread = new Thread("Server-Waiting-Thread") {
+            @Override
             public void run() {
                 try (
                         // creating a sever socket
@@ -189,7 +197,7 @@ public class TreasureGameServer {
                         String toremove = sl.get(1);
                         Player.ALL_PLAYERS.remove(toremove);
                     } catch (ArrayIndexOutOfBoundsException e) {
-                        System.err.println("Please give the name of the player...");
+                        System.err.println("Please give the name of a player...");
                     }
                 });
         // remove a player
@@ -198,7 +206,7 @@ public class TreasureGameServer {
                 String toremove = sl.get(1);
                 Player.ALL_PLAYERS.get(toremove).connectedThread.interrupt();
             } catch (ArrayIndexOutOfBoundsException | NullPointerException e) {
-                System.err.println("Please give the name of the player...");
+                System.err.println("Please give the name of a player...");
             }
         });
         // activate actions
@@ -207,29 +215,41 @@ public class TreasureGameServer {
                 String toactivate = String.join(" ", sl.subList(1, sl.size()));
                 provider.commonOptionLine = toactivate;
             } catch (ArrayIndexOutOfBoundsException | NullPointerException e) {
-                System.err.println("Please give the name of the player...");
+                System.err.println("Please give the name of a player...");
             }
         });
         // create arena
         serverCommands.put("prepare", sl -> {
             try {
-            	provider.prepareArena(sl.subList(1, sl.size()));
+                provider.prepareArena(sl.subList(1, sl.size()));
+                System.out.println("Arena ready for players " + provider.nextArenaFor);
             } catch (ArrayIndexOutOfBoundsException | NullPointerException e) {
-                System.err.println("Please give the name of the player...");
+                System.err.println("Please give the names of the players...");
             }
         });
         // start arena
         serverCommands.put("start", sl -> {
             try {
-            	synchronized (provider) {
-                	provider.startArena(sl.get(1));
-                	List<String> players = new ArrayList<>(provider.nextArenaFor);
-                	System.out.println("Arena started for "+provider.nextArenaFor);
-					while(!provider.nextArenaFor.isEmpty()) {
-						provider.waiti(0);
-					}
-					provider.prepareArena(players);
-				}
+                synchronized (provider) {
+                    String mapName = sl.get(1);
+                    final String specified = mapName;
+                    if (!provider.mapName2content.containsKey(mapName)) {
+                    	// find the closest one
+                        mapName = provider.mapName2content.keySet().stream()
+                                .filter(name -> name.toLowerCase().contains(specified.toLowerCase()))
+                                .findAny().orElseThrow(() -> new NullPointerException()); 
+                    }
+                    // start arena
+                    provider.startArena(mapName);
+                    List<String> players = new ArrayList<>(provider.nextArenaFor);
+                    System.out.println("Arena started for "+provider.nextArenaFor);
+                    while(!provider.nextArenaFor.isEmpty()) {
+                    	// wait for the players to start the map
+                        provider.waiti(0);
+                    }
+                    // just in case: prepare another arena with the same players
+                    provider.prepareArena(players);
+                }
             } catch (ArrayIndexOutOfBoundsException | NullPointerException e) {
                 System.err.println("Please give the map name... like "+provider.mapName2content.keySet());
             }

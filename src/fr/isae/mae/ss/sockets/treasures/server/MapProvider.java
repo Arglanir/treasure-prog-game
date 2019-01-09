@@ -8,7 +8,6 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -30,7 +29,7 @@ public class MapProvider {
     private static class WaitingPlayerInfo {
         // name of player
         String name;
-        // gain of player (if need to choose another map
+        // gain of player (if needed to choose another map)
         Integer gain;
         // the map they are waiting on
         String bestMap;
@@ -137,44 +136,52 @@ public class MapProvider {
     
     /** provide a map for the given player and gain */
     public synchronized GameMap provideMap(String player, int currentGain) {
-    	GameMap toreturn = waitArena(player);
-    	if (toreturn == null) {
-    		toreturn = provideMapMono(player, currentGain);
-    	}
-    	return toreturn;
+        GameMap toreturn = waitArena(player);
+        if (toreturn == null) {
+            toreturn = provideMapMono(player, currentGain);
+        }
+        return toreturn;
     }
     
     /** This will prepare an arena for given players */
     synchronized void prepareArena(Collection<String> players) {
-    	nextArenaFor.clear();
-    	nextArenaFor.addAll(players);
-    	notifyAll();
+        nextArenaFor.clear();
+        nextArenaFor.addAll(players);
+        notifyAll();
     }
 
     /** This will prepare an arena for given players */
-    synchronized void startArena(String map) {
-    	GameMap newMap = startMapWithPlayers(null, map, null);
-    	nextArenaFor.forEach(newMap::addPlayer);
-    	openedArena = newMap;
-    	notifyAll();
+    synchronized GameMap startArena(String map) {
+        GameMap newMap = startMapWithPlayers(null, map, null);
+        nextArenaFor.forEach(newMap::addPlayer);
+        openedArena = newMap;
+        notifyAll();
+        return newMap;
     }
     
     /** get the arena if one is opened */
     private synchronized GameMap waitArena(String player) {
-    	GameMap toreturn = null;
-    	if (nextArenaFor.contains(player)) {
-    		while (openedArena == null && nextArenaFor.contains(player)) {
-    			waiti(0);
-    		}
-    		if (nextArenaFor.contains(player)) {
-    			toreturn = openedArena;
-    			nextArenaFor.remove(player);
-    			notifyAll();
-    		}
-    	}
-    	return toreturn;
+        GameMap toreturn = null;
+        if (nextArenaFor.contains(player)) {
+            System.out.println("Player " + player + " waits for the start of the arena.");
+            while (openedArena == null && nextArenaFor.contains(player)) {
+                waiti(0);
+            }
+            if (nextArenaFor.contains(player)) {
+                toreturn = openedArena;
+                nextArenaFor.remove(player);
+                notifyAll();
+            }
+        }
+        return toreturn;
     }
 
+    /**
+     * Provide an automatic map for one player only. A more advanced method is {@link #provideMapMulti(String, int)}
+     * @param player	The player
+     * @param currentGain	Its current score
+     * @return	a map for the player
+     */
     private synchronized GameMap provideMapMono(String player, int currentGain) {
         // select mono map according to gain
         String bestMap = null;
@@ -189,7 +196,7 @@ public class MapProvider {
             if (Integer.parseInt(matcher.group(GROUP_MIN_PLAYERS)) >= 2)
                 continue;
             // ok, now we have a map with corresponding gain and mono player
-            // find map with possible maximum maximum player
+            // find map with possible maximum maximum gain
             int criteria = -Integer.parseInt(matcher.group(GROUP_MAX_GAIN));
             if (bestCriteria < criteria || (bestCriteria == criteria && new Random().nextBoolean())) {
                 bestMap = mapString;
@@ -200,6 +207,12 @@ public class MapProvider {
 
     }
 
+    /**
+     * An advanced version of {@link #provideMapMono(String, int)}
+     * @param player	The player
+     * @param currentGain	Its score
+     * @return	The new map, maybe with other players
+     */
     private synchronized GameMap provideMapMulti(String player, int currentGain) {
         /*
          * Algorithm: try to find the map for the maximum min players with the
@@ -369,7 +382,8 @@ public class MapProvider {
         if (nextMapIsForTheNextPlayers.size() == 0) {
             openedMap = null; // no new player awaited
         }
-        System.out.println("Map " + bestMap + " started for " + player + " " + otherPlayers);
+        System.out.println("Map " + bestMap + " started for " + player + " " +
+                (otherPlayers == null ? "only" : otherPlayers));
         return toreturn;
     }
 
